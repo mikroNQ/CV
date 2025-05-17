@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Распознавание лиц и силуэтов</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Распознавание лиц и силуэтов</h1>
+        <div class="video-container">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="canvas" class="detection-layer"></canvas>
+        </div>
+        <div class="controls">
+            <button id="startButton">Запустить камеру</button>
+            <button id="stopButton" disabled>Остановить камеру</button>
+            <button id="calibrateButton" disabled>Перекалибровать возраст</button>
+        </div>
+        <div class="stats">
+            <p>Обнаружено лиц: <span id="faceCount">0</span></p>
+            <p>Обнаружено силуэтов: <span id="personCount">0</span></p>
+            <p>Средний возраст: <span id="averageAge">-</span> лет</p>
+        </div>
+    </div>
+
+    <!-- TensorFlow.js ядро и конвертер - необходимы для работы офлайн -->
+    <script src="js/libs/tf.min.js"></script>
+    
+    <!-- Face-API.js -->
+    <script src="js/libs/face-api.min.js"></script>
+    
+    <!-- COCO-SSD -->
+    <script src="js/libs/coco-ssd.min.js"></script>
+    
+    <!-- Наш скрипт -->
+    <script src="app.js"></script>
+</body>
+</html> 

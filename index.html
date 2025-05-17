@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система проверки возраста</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Проверка возраста покупателя</h1>
+        
+        <div class="instructions-panel">
+            <h3>Инструкция:</h3>
+            <ol>
+                <li>Нажмите "Запустить камеру"</li>
+                <li>Смотрите прямо в камеру (возраст определится за 2.3 сек)</li>
+                <li>Когда возраст определен, нажмите "Подтвердить возраст"</li>
+                <li>Результат проверки отобразится на экране</li>
+            </ol>
+        </div>
+        
+        <div class="video-container">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="canvas" class="detection-layer"></canvas>
+        </div>
+        <div class="controls">
+            <button id="startButton">Запустить камеру</button>
+            <button id="stopButton" disabled>Остановить камеру</button>
+            <button id="calibrateButton" disabled>Перекалибровать возраст</button>
+            <button id="confirmAgeButton" disabled>Подтвердить возраст</button>
+        </div>
+        <div class="stats">
+            <p>Статус: <span id="statusDisplay">Ожидание</span></p>
+            <p>Определенный возраст: <span id="averageAge">-</span> лет</p>
+            <p id="ageVerdict" class="age-verdict"></p>
+        </div>
+    </div>
+
+    <!-- Скрипт загрузчика WASM и библиотек -->
+    <script>
+        // Функция для определения производительности устройства
+        function checkWebGLPerformance() {
+            const canvas = document.createElement('canvas');
+            const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+            const hasStrongWebGL = gl && gl.getExtension('WEBGL_depth_texture');
+            
+            // Проверка количества логических процессоров
+            const cpuCores = navigator.hardwareConcurrency || 1;
+            
+            // Определяем, нужно ли использовать WASM вместо WebGL
+            return {
+                isLowEndDevice: !hasStrongWebGL || cpuCores <= 2,
+                useWasm: !hasStrongWebGL
+            };
+        }
+        
+        // Динамическая загрузка нужных скриптов
+        async function loadScripts() {
+            const deviceInfo = checkWebGLPerformance();
+            const statusDisplay = document.getElementById('statusDisplay');
+            statusDisplay.textContent = 'Анализ устройства...';
+            
+            try {
+                // Всегда загружаем основной TensorFlow
+                statusDisplay.textContent = 'Загрузка TensorFlow...';
+                await loadScript('js/libs/tf.min.js');
+                
+                // Если нужен WASM бэкенд, загружаем его
+                if (deviceInfo.useWasm) {
+                    statusDisplay.textContent = 'Загрузка WASM...';
+                    try {
+                        await loadScript('js/libs/tf-backend-wasm.min.js');
+                        console.log('WASM бэкенд загружен для слабого устройства');
+                    } catch (e) {
+                        console.warn('Не удалось загрузить WASM бэкенд:', e);
+                        statusDisplay.textContent = 'WASM не загружен, используем WebGL';
+                    }
+                }
+                
+                // Загружаем Face-API
+                statusDisplay.textContent = 'Загрузка Face-API...';
+                await loadScript('js/libs/face-api.min.js');
+                
+                // Делаем небольшую паузу, чтобы модель Face-API инициализировалась
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Проверяем, инициализирован ли Face-API
+                if (typeof faceapi === 'undefined') {
+                    throw new Error('Face-API не инициализирован');
+                }
+                
+                // Загружаем наш основной скрипт
+                statusDisplay.textContent = 'Загрузка приложения...';
+                await loadScript('app.js');
+                
+                statusDisplay.textContent = 'Готово к запуску';
+            } catch (error) {
+                console.error('Ошибка загрузки скриптов:', error);
+                statusDisplay.textContent = 'Ошибка загрузки! Обновите страницу';
+                alert('Произошла ошибка при загрузке компонентов: ' + error.message);
+            }
+        }
+        
+        // Функция для асинхронной загрузки скриптов
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => {
+                    console.log(`Скрипт ${src} успешно загружен`);
+                    resolve();
+                };
+                script.onerror = (err) => {
+                    console.error(`Ошибка загрузки скрипта ${src}:`, err);
+                    reject(new Error(`Ошибка загрузки скрипта ${src}`));
+                };
+                document.body.appendChild(script);
+            });
+        }
+        
+        // Запускаем загрузку скриптов после загрузки DOM
+        document.addEventListener('DOMContentLoaded', loadScripts);
+    </script>
+</body>
+</html> 
