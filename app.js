@@ -1,3 +1,5 @@
+// app.js
+
 const video = document.getElementById('webcam');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { alpha: true });
@@ -9,181 +11,28 @@ const statusDisplay = document.getElementById('statusDisplay');
 const averageAgeDisplay = document.getElementById('averageAge');
 const ageVerdictDisplay = document.getElementById('ageVerdict');
 
-// Конфигурация производительности
 const performanceConfig = {
-    lowEndDevice: false,         // Флаг низкопроизводительного устройства
-    detectionInterval: 100,      // Интервал детекции в мс (по умолчанию)  
-    videoConstraints: {          // Настройки видео
+    lowEndDevice: false,
+    detectionInterval: 100,
+    videoConstraints: {
         width: { ideal: 640 },
         height: { ideal: 480 },
-        facingMode: "user"       // Добавляем выбор фронтальной камеры
+        facingMode: "user"
     },
-    useWasm: false,              // Использовать WASM вместо WebGL
-    skipEffects: false,          // Пропускать визуальные эффекты
-    forceHighPerformance: false  // Принудительный режим высокой производительности
+    useWasm: false,
+    skipEffects: false,
+    forceHighPerformance: false
 };
 
-// Добавим отображение режима производительности в UI
-function updatePerformanceModeUI() {
-    // Находим или создаем элемент для отображения режима
-    let modeDisplay = document.getElementById('performanceModeDisplay');
-    if (!modeDisplay) {
-        modeDisplay = document.createElement('div');
-        modeDisplay.id = 'performanceModeDisplay';
-        modeDisplay.className = 'performance-mode-display';
-        
-        // Добавляем после статистики
-        const statsElement = document.querySelector('.stats');
-        if (statsElement) {
-            statsElement.parentNode.insertBefore(modeDisplay, statsElement.nextSibling);
-        } else {
-            document.body.appendChild(modeDisplay);
-        }
-    }
-    
-    // Обновляем текст и стиль
-    modeDisplay.textContent = performanceConfig.lowEndDevice ? 
-        '📱 Режим низкой производительности' : '🖥️ Режим высокой производительности';
-    modeDisplay.className = performanceConfig.lowEndDevice ? 
-        'performance-mode-display low-mode' : 'performance-mode-display high-mode';
-}
-
-// Проверка производительности устройства
-function checkDevicePerformance() {
-    // Проверяем, есть ли сохраненный режим в localStorage
-    try {
-        const savedMode = localStorage.getItem('age-verification-performance-mode');
-        if (savedMode === 'high') {
-            performanceConfig.forceHighPerformance = true;
-            console.log('Использование сохранённого режима высокой производительности');
-        } else if (savedMode === 'low') {
-            performanceConfig.forceHighPerformance = false;
-            performanceConfig.lowEndDevice = true;
-            console.log('Использование сохранённого режима низкой производительности');
-            document.body.classList.add('low-end');
-            applyLowEndSettings();
-            return performanceConfig;
-        }
-    } catch (e) {
-        console.warn('Ошибка при чтении сохранённого режима:', e);
-    }
-    
-    // Если принудительно включен режим высокой производительности, пропускаем проверку
-    if (performanceConfig.forceHighPerformance) {
-        performanceConfig.lowEndDevice = false;
-        document.body.classList.remove('low-end');
-        return performanceConfig;
-    }
-    
-    // Проверка поддержки WebGL
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    const hasStrongWebGL = gl && gl.getExtension('WEBGL_depth_texture');
-    
-    // Проверка количества логических процессоров
-    const cpuCores = navigator.hardwareConcurrency || 1;
-    
-    // Более мягкие критерии для определения слабого устройства
-    // Для ноутбуков требуем совпадения обоих факторов
-    performanceConfig.lowEndDevice = !hasStrongWebGL && cpuCores <= 2;
-    
-    if (performanceConfig.lowEndDevice) {
-        console.log('Обнаружено устройство с низкой производительностью, применяются оптимизации');
-        applyLowEndSettings();
-    } else {
-        document.body.classList.remove('low-end');
-    }
-    
-    // Добавляем отладочный вывод для проверки состояния
-    console.log('Состояние устройства:', {
-        forceHighPerformance: performanceConfig.forceHighPerformance,
-        lowEndDevice: performanceConfig.lowEndDevice,
-        useWasm: performanceConfig.useWasm,
-        skipEffects: performanceConfig.skipEffects,
-        detectionInterval: performanceConfig.detectionInterval,
-        videoResolution: performanceConfig.videoConstraints
-    });
-    
-    // Обновляем отображение режима в UI
-    updatePerformanceModeUI();
-    
-    return performanceConfig;
-}
-
-// Выносим настройки режима низкой производительности в отдельную функцию
-function applyLowEndSettings() {
-    // Настраиваем оптимизации для слабых устройств
-    performanceConfig.detectionInterval = 300;  // Реже проверяем лицо
-    performanceConfig.videoConstraints = {
-        width: { ideal: 320 },    // Уменьшаем разрешение видео
-        height: { ideal: 240 },
-        facingMode: "user"
-    };
-    performanceConfig.useWasm = true; // Используем WASM для слабых устройств
-    performanceConfig.skipEffects = true; // Отключаем эффекты
-    
-    // Добавляем класс low-end к body для CSS оптимизаций
-    document.body.classList.add('low-end');
-}
-
-// Функция переключения режима производительности
-function togglePerformanceMode() {
-    // Инвертируем режим
-    performanceConfig.lowEndDevice = !performanceConfig.lowEndDevice;
-    
-    // Сохраняем выбор пользователя
-    try {
-        localStorage.setItem('age-verification-performance-mode', 
-            performanceConfig.lowEndDevice ? 'low' : 'high');
-    } catch (e) {
-        console.warn('Не удалось сохранить режим производительности:', e);
-    }
-    
-    if (performanceConfig.lowEndDevice) {
-        // Применяем настройки для низкой производительности
-        applyLowEndSettings();
-        console.log('Включен режим низкой производительности');
-    } else {
-        // Возвращаем настройки для высокой производительности
-        performanceConfig.detectionInterval = 100;
-        performanceConfig.videoConstraints = {
-            width: { ideal: 640 },
-            height: { ideal: 480 },
-            facingMode: "user"
-        };
-        performanceConfig.useWasm = false;
-        performanceConfig.skipEffects = false;
-        document.body.classList.remove('low-end');
-        console.log('Включен режим высокой производительности');
-    }
-    
-    // Если камера уже запущена, перезапускаем её с новыми настройками
-    if (stream) {
-        // Останавливаем камеру
-        stopWebcam();
-        // И запускаем заново
-        setTimeout(() => {
-            startWebcam();
-        }, 500);
-    }
-    
-    // Обновляем отображение режима в UI
-    updatePerformanceModeUI();
-    
-    return performanceConfig.lowEndDevice ? 'Режим низкой производительности' : 'Режим высокой производительности';
-}
-
-// Удаляем тестовые console.log и alert
 let stream;
-let detectionInterval;
+let detectionInterval; // For setInterval
 let shouldUpdateAges = false;
 let currentBestFaceId = null;
 let isAgeStableForConfirmation = false;
-let statusUpdateCounter = 0;
-let animationFrameId = null;
-let faceDetectionData = null;
+// let statusUpdateCounter = 0; // Seemingly unused, commented out
+let animationFrameId = null; // For startRenderLoop
+let faceDetectionData = null; // Holds data for rendering
 
-// Добавляем переменную для хранения статуса возраста
 window.ageVerificationStatus = null;
 
 const faceAgeHistory = new Map();
@@ -191,485 +40,499 @@ const AGE_HISTORY_LENGTH = 3;
 let displayedAges = new Map();
 const AGE_UPDATE_THRESHOLD = 1.0;
 const AGE_VERIFICATION_THRESHOLD = 18;
-const LOCK_TIMER_DURATION_MS = 3000; // 3 секунды для фиксации
-const FACE_POSITION_TOLERANCE = 10; // допустимое отклонение в пикселях
-const AGE_DETERMINATION_TIME = 2300; // 2.3 секунды для определения возраста
+// const LOCK_TIMER_DURATION_MS = 3000; // Seemingly unused
+// const FACE_POSITION_TOLERANCE = 10; // Now used by getFaceId
+const AGE_DETERMINATION_TIME = 2300;
 
-const FACE_API_MODEL_URL = 'models/face_api';
+// const FACE_API_MODEL_URL = 'models/face_api'; // No longer needed here, worker uses its own relative path
 
-// Добавляем глобальную переменную для отслеживания загруженности моделей
-let modelsLoadedSuccessfully = false;
+// Worker related variables
+let detectionWorker;
+let frameDetectId = 0; // For correlating profiling messages
 
-async function loadModels() {
-    try {
-        console.log('Загрузка локальных моделей Face API...');
-        
-        // Принудительно сбрасываем кэш для диагностики проблемы загрузки
-        if (faceapi && faceapi.tf) {
-            try {
-                console.log('Попытка очистки кэша моделей faceapi');
-                // Проверяем наличие метода перед вызовом
-                if (faceapi.tf.engine && 
-                    typeof faceapi.tf.engine === 'function' &&
-                    faceapi.tf.engine().dispose && 
-                    typeof faceapi.tf.engine().dispose === 'function') {
-                    
-                    faceapi.tf.engine().dispose();
-                    console.log('Кэш TensorFlow очищен через dispose()');
-                } else if (faceapi.tf.disposeVariables && 
-                           typeof faceapi.tf.disposeVariables === 'function') {
-                    
-                    faceapi.tf.disposeVariables();
-                    console.log('Кэш TensorFlow очищен через disposeVariables()');
-                } else {
-                    console.log('Методы очистки TensorFlow не найдены, пропускаем очистку кэша');
-                }
-            } catch (purgeError) {
-                console.warn('Ошибка при очистке кэша:', purgeError);
-            }
-        }
-        
-        // Проверяем, есть ли модели в кэше
-        const modelCacheKey = 'face-api-models-cache-v2';
-        // Всегда загружаем модели для диагностики проблемы
-        let shouldLoadModels = true;
-        let useCachedModels = false;
-        
-        // Если модели были успешно загружены ранее, пропускаем проверку кэша
-        if (!modelsLoadedSuccessfully) {
-            try {
-                // Проверяем, загружались ли модели ранее
-                if (window.localStorage) {
-                    const modelCache = localStorage.getItem(modelCacheKey);
-                    if (modelCache) {
-                        const { timestamp } = JSON.parse(modelCache);
-                        // Используем кэш, если он не старше 1 дня
-                        const oneDayMs = 24 * 60 * 60 * 1000;
-                        shouldLoadModels = !timestamp || (Date.now() - timestamp > oneDayMs);
-                        
-                        if (!shouldLoadModels) {
-                            console.log('Используем кэшированные модели Face API');
-                            useCachedModels = true;
-                        }
-                    }
-                }
-            } catch (cacheError) {
-                console.warn('Ошибка проверки кэша моделей:', cacheError);
-                shouldLoadModels = true;
-            }
+function updatePerformanceModeUI() {
+    let modeDisplay = document.getElementById('performanceModeDisplay');
+    if (!modeDisplay) {
+        modeDisplay = document.createElement('div');
+        modeDisplay.id = 'performanceModeDisplay';
+        modeDisplay.className = 'performance-mode-display';
+        const statsElement = document.querySelector('.stats');
+        if (statsElement) {
+            statsElement.parentNode.insertBefore(modeDisplay, statsElement.nextSibling);
         } else {
-            console.log('Модели уже были успешно загружены');
+            document.body.appendChild(modeDisplay);
         }
-        
-        // Всегда загружаем обе модели явно
-        try {
-            console.log('Загрузка ssdMobilenetv1...');
-            console.log('Путь к модели:', FACE_API_MODEL_URL);
-            
-            // Проверяем доступность файлов модели через fetch
-            const modelWeightUrl = `${FACE_API_MODEL_URL}/ssd_mobilenetv1_model-weights_manifest.json`;
-            console.log('Проверка доступа к файлу модели:', modelWeightUrl);
-            
-            try {
-                const checkResponse = await fetch(modelWeightUrl, {cache: 'no-store'});
-                if (checkResponse.ok) {
-                    console.log('Файл модели доступен, статус:', checkResponse.status);
-                } else {
-                    console.error('Файл модели недоступен, статус:', checkResponse.status);
-                }
-            } catch (fetchError) {
-                console.error('Ошибка проверки доступа к файлу модели:', fetchError);
-            }
-            
-            await faceapi.nets.ssdMobilenetv1.loadFromUri(FACE_API_MODEL_URL);
-            console.log('Модель ssdMobilenetv1 загружена');
-        } catch (ssdError) {
-            console.error('Ошибка загрузки модели ssdMobilenetv1:', ssdError);
-            throw new Error('Не удалось загрузить модель распознавания лиц');
-        }
-        
-        try {
-            console.log('Загрузка ageGenderNet...');
-            
-            // Проверяем доступность файлов модели через fetch
-            const ageModelWeightUrl = `${FACE_API_MODEL_URL}/age_gender_model-weights_manifest.json`;
-            console.log('Проверка доступа к файлу модели возраста:', ageModelWeightUrl);
-            
-            try {
-                const checkResponse = await fetch(ageModelWeightUrl, {cache: 'no-store'});
-                if (checkResponse.ok) {
-                    console.log('Файл модели возраста доступен, статус:', checkResponse.status);
-                } else {
-                    console.error('Файл модели возраста недоступен, статус:', checkResponse.status);
-                }
-            } catch (fetchError) {
-                console.error('Ошибка проверки доступа к файлу модели возраста:', fetchError);
-            }
-            
-            await faceapi.nets.ageGenderNet.loadFromUri(FACE_API_MODEL_URL);
-            console.log('Модель ageGenderNet загружена');
-        } catch (ageError) {
-            console.error('Ошибка загрузки модели ageGenderNet:', ageError);
-            throw new Error('Не удалось загрузить модель определения возраста');
-        }
-        
-        // Проверяем загружены ли основные модели
-        const isSsdModelLoaded = faceapi.nets.ssdMobilenetv1.isLoaded;
-        const isAgeGenderModelLoaded = faceapi.nets.ageGenderNet.isLoaded;
-        
-        console.log('Статус загрузки моделей:', {
-            ssdMobilenetv1: isSsdModelLoaded ? 'Загружена' : 'НЕ загружена',
-            ageGenderNet: isAgeGenderModelLoaded ? 'Загружена' : 'НЕ загружена'
-        });
-        
-        if (!isSsdModelLoaded) {
-            throw new Error('Модель SsdMobilenetv1 не загружена');
-        }
-        
-        if (!isAgeGenderModelLoaded) {
-            throw new Error('Модель AgeGenderNet не загружена');
-        }
-        
-        // Сохраняем метку времени в кэш при успешной загрузке
-        try {
-            if (window.localStorage) {
-                localStorage.setItem(modelCacheKey, JSON.stringify({ 
-                    timestamp: Date.now() 
-                }));
-            }
-        } catch (setCacheError) {
-            console.warn('Не удалось сохранить метку кэша моделей:', setCacheError);
-        }
-        
-        // Устанавливаем флаг успешной загрузки моделей
-        modelsLoadedSuccessfully = true;
-        
-        console.log('Модели Face API успешно загружены');
-        startButton.disabled = false;
-    } catch (error) {
-        // При ошибке загрузки моделей сбрасываем флаг
-        modelsLoadedSuccessfully = false;
-        
-        console.error('Ошибка загрузки моделей Face API:', error);
-        statusDisplay.textContent = 'Ошибка загрузки моделей';
-        alert('Не удалось загрузить модели для распознавания: ' + error.message);
-        throw error;
     }
+    modeDisplay.textContent = performanceConfig.lowEndDevice ?
+        '📱 Режим низкой производительности' : '🖥️ Режим высокой производительности';
+    modeDisplay.className = performanceConfig.lowEndDevice ?
+        'performance-mode-display low-mode' : 'performance-mode-display high-mode';
 }
 
-// Функция для принудительной перезагрузки моделей
-async function forceReloadModels() {
+function checkDevicePerformance() {
     try {
-        statusDisplay.textContent = 'Принудительная перезагрузка моделей...';
-        
-        // Очищаем кэш
-        if (window.localStorage) {
-            localStorage.removeItem('face-api-models-cache-v2');
+        const savedMode = localStorage.getItem('age-verification-performance-mode');
+        if (savedMode === 'high') {
+            performanceConfig.forceHighPerformance = true;
+        } else if (savedMode === 'low') {
+            performanceConfig.forceHighPerformance = false;
+            performanceConfig.lowEndDevice = true;
+            document.body.classList.add('low-end');
+            applyLowEndSettings(); // Apply settings if loaded from storage
+            // No return here, let it flow to update UI and worker
         }
-        
-        // Принудительно очищаем кэш моделей
-        if (faceapi && faceapi.tf) {
-            faceapi.tf.engine().purgeUnusedBackends();
-        }
-        
-        // Перезагружаем модели
-        await loadModels();
-        
-        statusDisplay.textContent = 'Модели успешно перезагружены';
-        return true;
-    } catch (error) {
-        console.error('Ошибка при принудительной перезагрузке моделей:', error);
-        statusDisplay.textContent = 'Ошибка перезагрузки моделей';
-        return false;
+    } catch (e) {
+        console.warn('[Main] Ошибка при чтении сохранённого режима:', e);
     }
+
+    if (performanceConfig.forceHighPerformance && !performanceConfig.lowEndDevice) { // ensure lowEnd isn't true if high perf is forced
+        performanceConfig.lowEndDevice = false;
+        document.body.classList.remove('low-end');
+        // Reset to high-performance defaults if they were changed by applyLowEndSettings
+        performanceConfig.detectionInterval = 100;
+        performanceConfig.videoConstraints = { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" };
+        performanceConfig.useWasm = false;
+        performanceConfig.skipEffects = false;
+    } else if (performanceConfig.lowEndDevice) { // This will be true if set by localStorage or by detection logic
+         applyLowEndSettings(); // Apply settings if not already applied by localStorage path
+    } else { // Auto-detect if no preference stored and not forced
+        const canvasTest = document.createElement('canvas');
+        const gl = canvasTest.getContext('webgl') || canvasTest.getContext('experimental-webgl');
+        const hasStrongWebGL = gl && gl.getExtension('WEBGL_depth_texture');
+        const cpuCores = navigator.hardwareConcurrency || 1;
+        performanceConfig.lowEndDevice = !hasStrongWebGL && cpuCores <= 2;
+
+        if (performanceConfig.lowEndDevice) {
+            console.log('[Main] Обнаружено устройство с низкой производительностью, применяются оптимизации');
+            applyLowEndSettings();
+        } else {
+            document.body.classList.remove('low-end');
+             // Ensure high-performance defaults are set if auto-detecting high-end
+            performanceConfig.detectionInterval = 100;
+            performanceConfig.videoConstraints = { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" };
+            performanceConfig.useWasm = false;
+            performanceConfig.skipEffects = false;
+        }
+    }
+    
+    console.log('[Main] Состояние устройства (после checkDevicePerformance):', performanceConfig);
+    updatePerformanceModeUI();
+    // Worker will be initialized/re-initialized by the caller of checkDevicePerformance (e.g. onload or togglePerformanceMode)
 }
 
-// Обновляем функцию window.onload для обработки ошибок и добавления кнопки перезагрузки моделей
+function applyLowEndSettings() {
+    performanceConfig.detectionInterval = 300;
+    performanceConfig.videoConstraints = { width: { ideal: 320 }, height: { ideal: 240 }, facingMode: "user" };
+    performanceConfig.useWasm = true;
+    performanceConfig.skipEffects = true;
+    document.body.classList.add('low-end');
+}
+
+function togglePerformanceMode() {
+    performanceConfig.lowEndDevice = !performanceConfig.lowEndDevice; // Toggle the flag
+
+    try {
+        localStorage.setItem('age-verification-performance-mode',
+            performanceConfig.lowEndDevice ? 'low' : 'high');
+    } catch (e) {
+        console.warn('[Main] Не удалось сохранить режим производительности:', e);
+    }
+
+    if (performanceConfig.lowEndDevice) {
+        applyLowEndSettings();
+        console.log('[Main] Включен режим низкой производительности');
+    } else {
+        // Reset to high-performance defaults
+        performanceConfig.detectionInterval = 100;
+        performanceConfig.videoConstraints = { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" };
+        performanceConfig.useWasm = false;
+        performanceConfig.skipEffects = false;
+        document.body.classList.remove('low-end');
+        console.log('[Main] Включен режим высокой производительности');
+    }
+    
+    updatePerformanceModeUI(); // Update UI text
+
+    // Re-initialize worker and restart webcam if active
+    if (stream) {
+        stopWebcam(); // Terminates old worker & clears interval
+        initializeWorker(); // Re-init worker with new performanceConfig
+        setTimeout(() => {
+            startWebcam(); // Starts with new settings
+        }, 500);
+    } else {
+        // If stream not active, just ensure worker gets new config for next time
+        initializeWorker();
+    }
+    alert('Переключено: ' + (performanceConfig.lowEndDevice ? 'Режим низкой производительности' : 'Режим высокой производительности'));
+}
+
+
+function initializeWorker() {
+    if (detectionWorker) {
+        detectionWorker.terminate();
+        console.log('[Main] Previous worker terminated.');
+    }
+    detectionWorker = new Worker('js/detection.worker.js');
+    console.log('[Main] Detection worker created.');
+
+    // Send a copy of relevant config to worker.
+    // performanceConfig might contain other UI related things not needed by worker.
+    const workerConfig = {
+        lowEndDevice: performanceConfig.lowEndDevice,
+        useWasm: performanceConfig.useWasm
+        // Add any other worker-specific config from performanceConfig here
+    };
+    detectionWorker.postMessage({ type: 'init', config: workerConfig });
+    console.log('[Main] Sent init message to worker with config:', workerConfig);
+
+    detectionWorker.onmessage = (event) => {
+        const { type, detections, message, id } = event.data;
+        // console.log('[Main] Received message from worker:', event.data); // For debugging
+
+        if (type === 'models_loaded') {
+            console.log('[Main] Worker reported models loaded.');
+            statusDisplay.textContent = 'Модели загружены. Готово к работе!';
+            statusDisplay.className = 'verified';
+            startButton.disabled = false;
+        } else if (type === 'detection_result') {
+            if (id) { // End profiling timer for this frame
+                console.timeEnd(`[Main] frameProcessingTime_${id}`);
+            }
+
+            if (!detections || detections.length === 0) {
+                if (!isAgeStableForConfirmation) {
+                    averageAgeDisplay.textContent = '-';
+                    // Only update status if not showing a critical error or model loading message
+                    if (statusDisplay.className !== 'error' && !startButton.disabled) {
+                         // statusDisplay.textContent = 'Лицо не обнаружено. Посмотрите в камеру.';
+                         // statusDisplay.className = 'error'; // This might be too aggressive
+                    }
+                    confirmAgeButton.disabled = true;
+                    currentBestFaceId = null;
+                }
+                // Clear old box if no face for a while
+                if (faceDetectionData && Date.now() - faceDetectionData.lastDetectionTime > 2000) { // Reduced time a bit
+                    faceDetectionData.faceBox = null; 
+                }
+                return;
+            }
+
+            const bestDetection = getBestDetection(detections);
+            if (!bestDetection) return;
+
+            const faceId = getFaceId(bestDetection.detection.box); // Pass the box to getFaceId
+            const processedAge = smoothAge(faceId, Math.round(bestDetection.age));
+            const faceData = faceAgeHistory.get(faceId);
+
+            if (!faceDetectionData) { // Initialize if null
+                faceDetectionData = { lastDetectionTime: 0, faceBox: null, faceId: null, age: null, isStable: false };
+            }
+
+            faceDetectionData.lastDetectionTime = Date.now();
+            faceDetectionData.faceBox = bestDetection.detection.box;
+            faceDetectionData.faceId = faceId; // Store current faceId
+            faceDetectionData.age = processedAge; // Store smoothed age for rendering
+            faceDetectionData.isStable = faceData ? faceData.isStable : false;
+
+            if (faceData && faceData.isStable) {
+                currentBestFaceId = faceId;
+                isAgeStableForConfirmation = true;
+                confirmAgeButton.disabled = false;
+                statusDisplay.textContent = 'Возраст определен. Нажмите "Подтвердить возраст"';
+                statusDisplay.className = 'ready-for-confirmation';
+                averageAgeDisplay.textContent = processedAge;
+            } else if (!isAgeStableForConfirmation) {
+                confirmAgeButton.disabled = true;
+                currentBestFaceId = null; // Reset if current face not stable
+                averageAgeDisplay.textContent = '-';
+                if (statusDisplay.className !== 'error' && !startButton.disabled ) { // Check startButton to avoid overwriting model loading message
+                    statusDisplay.textContent = 'Определение возраста...';
+                    statusDisplay.className = 'scanning';
+                }
+            }
+            cleanupAgeHistory();
+
+        } else if (type === 'error') {
+            console.error('[Main] Worker Error (frame ' + id + '):', message);
+            statusDisplay.textContent = 'Ошибка в Worker: ' + message;
+            statusDisplay.className = 'error';
+            // startButton.disabled = true; // Maybe too disruptive for non-fatal worker errors
+        }
+    };
+
+    detectionWorker.onerror = (error) => {
+        console.error('[Main] Uncaught Worker Error:', error);
+        statusDisplay.textContent = 'Критическая ошибка Worker. Обновите страницу.';
+        statusDisplay.className = 'error';
+        startButton.disabled = true;
+        if (stream) {
+            stopWebcam();
+        }
+    };
+}
+
+
 window.onload = async () => {
-    console.log('Инициализация приложения...');
-    console.log('ТЕСТ КОНСОЛИ: Проверка вывода в консоль');
-    statusDisplay.textContent = 'Загрузка моделей...';
+    console.log('[Main] Инициализация приложения...');
+    statusDisplay.textContent = 'Анализ устройства и загрузка библиотек...'; // Initial status
     startButton.disabled = true;
 
-    // Для мощных ноутбуков установим режим высокой производительности по умолчанию
-    if (navigator.userAgent.indexOf('Mac') !== -1 || 
-        navigator.userAgent.indexOf('Win') !== -1) {
+    // Default to high-performance for non-mobile, can be overridden by checkDevicePerformance
+    if (!/Mobi|Android/i.test(navigator.userAgent)) {
         performanceConfig.forceHighPerformance = true;
-        console.log('Обнаружен ноутбук/десктоп, установлен режим высокой производительности по умолчанию');
+         console.log('[Main] По умолчанию установлен режим высокой производительности для десктопа.');
     }
 
-    // Проверка производительности устройства
-    checkDevicePerformance();
 
-    if (tf) {
-        console.log('TensorFlow.js загружен, версия:', tf.version);
-        
-        // Настраиваем бэкенд TensorFlow в зависимости от устройства
-        if (performanceConfig.useWasm) {
-            console.log('Используем WASM бэкенд для TensorFlow');
-            await tf.setBackend('wasm');
-        } else {
-            await tf.setBackend('webgl');
-            console.log('TensorFlow бэкенд инициализирован:', tf.getBackend());
-            
-            // Оптимизируем настройки WebGL
-            if (performanceConfig.lowEndDevice) {
-                tf.env().set('WEBGL_FORCE_F16_TEXTURES', true);
-                tf.env().set('WEBGL_PACK_DEPTHWISECONV', false);
-            } else {
-                tf.env().set('WEBGL_CPU_FORWARD', false);
-                tf.env().set('WEBGL_PACK', false);
-            }
-        }
-    } else {
+    checkDevicePerformance(); // This will apply low-end settings if needed
+
+    // TF.js and Face-API.js library checks (assuming they are loaded by index.html script tags)
+    if (!tf) {
         console.error('TensorFlow.js не загружен!');
         statusDisplay.textContent = 'Ошибка TensorFlow.js';
         alert('Ошибка: не удалось загрузить библиотеку TensorFlow.js.');
         return;
     }
+    console.log('[Main] TensorFlow.js загружен, версия:', tf.version);
 
-    if (faceapi) {
-        console.log('Face-API.js загружен');
-    } else {
+    if (!faceapi) {
         console.error('Face-API.js не загружен!');
         statusDisplay.textContent = 'Ошибка Face-API.js';
-        // Добавляем кнопку для перезагрузки страницы
-        const reloadButton = document.createElement('button');
-        reloadButton.textContent = 'Перезагрузить страницу';
-        reloadButton.className = 'reload-button';
-        reloadButton.onclick = () => window.location.reload();
-        document.body.appendChild(reloadButton);
-        
         alert('Ошибка: не удалось загрузить библиотеку Face-API.js. Перезагрузите страницу.');
+        return;
+    }
+    console.log('[Main] Face-API.js загружен');
+    
+    // Backend setup is now primarily handled by the worker based on its config.
+    // Main thread might set a preferred backend if TF is used here for other things,
+    // but for face-api in worker, worker's own setup is key.
+    // We can still log the main thread's backend for info.
+    try {
+        if (performanceConfig.useWasm) {
+            await tf.setBackend('wasm');
+        } else {
+            await tf.setBackend('webgl');
+        }
+        await tf.ready();
+        console.log('[Main] TensorFlow бэкенд инициализирован на основной странице:', tf.getBackend());
+    } catch (backendError) {
+        console.error('[Main] Ошибка установки бэкенда на основной странице:', backendError);
+    }
+
+    initializeWorker(); // Initialize worker, it will load models and enable startButton
+
+    updatePerformanceModeUI(); // Update UI for performance mode display
+
+    // Add performance toggle button (already in original code)
+    const toggleButton = document.createElement('button');
+    toggleButton.id = 'togglePerformanceButton';
+    toggleButton.textContent = 'Переключить режим производительности';
+    toggleButton.className = 'performance-button';
+    const controlsElement = document.querySelector('.controls');
+    if (controlsElement) {
+        controlsElement.appendChild(toggleButton);
+    } else {
+        document.body.appendChild(toggleButton);
+    }
+    toggleButton.addEventListener('click', () => {
+        togglePerformanceMode();
+    });
+};
+
+
+async function startWebcam() {
+    if (startButton.disabled) {
+        console.warn('[Main] Start button is disabled, worker might not be ready or models not loaded.');
+        statusDisplay.textContent = 'Модели еще не загружены или Worker не готов. Пожалуйста, подождите.';
+        if (!detectionWorker) {
+            console.log('[Main] Worker not found, re-initializing.');
+            initializeWorker(); // Attempt to re-init if worker is missing
+        }
         return;
     }
 
     try {
-        await loadModels();
-        statusDisplay.textContent = 'Готово к работе';
-        console.log('Все модели успешно загружены, приложение готово к работе');
-    } catch (error) {
-        console.error('Ошибка при инициализации:', error);
-        statusDisplay.textContent = 'Ошибка инициализации моделей';
-        
-        // Добавляем кнопку для принудительной перезагрузки моделей
-        const reloadModelsButton = document.createElement('button');
-        reloadModelsButton.textContent = 'Перезагрузить модели';
-        reloadModelsButton.className = 'reload-button';
-        reloadModelsButton.onclick = async () => {
-            reloadModelsButton.disabled = true;
-            reloadModelsButton.textContent = 'Перезагрузка...';
-            const success = await forceReloadModels();
-            
-            if (success) {
-                reloadModelsButton.textContent = 'Готово!';
-                setTimeout(() => {
-                    reloadModelsButton.remove();
-                }, 2000);
-            } else {
-                reloadModelsButton.textContent = 'Ошибка! Попробуйте еще раз';
-                reloadModelsButton.disabled = false;
-            }
-        };
-        
-        // Находим подходящее место для вставки кнопки
-        const controls = document.querySelector('.controls');
-        if (controls) {
-            controls.prepend(reloadModelsButton);
-        } else {
-            document.body.prepend(reloadModelsButton);
+        if (location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(location.hostname)) {
+            console.warn('[Main] Для доступа к веб-камере рекомендуется использовать HTTPS');
+            // alert('Для доступа к веб-камере рекомендуется использовать HTTPS протокол.'); // Can be annoying
         }
-    }
 
-    // Отображаем изначальный режим производительности
-    updatePerformanceModeUI();
-    
-    // Добавляем кнопку для ручной загрузки моделей
-    const loadModelsButton = document.createElement('button');
-    loadModelsButton.textContent = 'Загрузить модели';
-    loadModelsButton.className = 'load-models-button';
-    loadModelsButton.style.backgroundColor = '#3498db';
-    loadModelsButton.style.color = 'white';
-    loadModelsButton.style.padding = '12px 20px';
-    loadModelsButton.style.margin = '10px auto';
-    loadModelsButton.style.display = 'block';
-    loadModelsButton.style.border = 'none';
-    loadModelsButton.style.borderRadius = '5px';
-    loadModelsButton.style.fontWeight = 'bold';
-    loadModelsButton.style.cursor = 'pointer';
-    
-    loadModelsButton.onclick = async () => {
-        loadModelsButton.disabled = true;
-        loadModelsButton.textContent = 'Загрузка моделей...';
-        statusDisplay.textContent = 'Загрузка моделей...';
-        
-        try {
-            await loadModels();
-            loadModelsButton.textContent = 'Модели загружены';
-            loadModelsButton.style.backgroundColor = '#27ae60';
-            statusDisplay.textContent = 'Модели загружены. Можно запускать камеру';
-            startButton.disabled = false;
-        } catch (error) {
-            console.error('Ошибка при загрузке моделей:', error);
-            loadModelsButton.textContent = 'Ошибка загрузки';
-            loadModelsButton.style.backgroundColor = '#e74c3c';
-            loadModelsButton.disabled = false;
-            statusDisplay.textContent = 'Ошибка загрузки моделей';
-        }
-    };
-    
-    // Размещаем кнопку перед кнопкой старта
-    const controls = document.querySelector('.controls');
-    if (controls) {
-        controls.prepend(loadModelsButton);
-    } else {
-        document.body.prepend(loadModelsButton);
-    }
-};
-
-// Добавляем стили для кнопки перезагрузки моделей
-window.addEventListener('DOMContentLoaded', function() {
-    // Добавляем стили для кнопки перезагрузки
-    const style = document.createElement('style');
-    style.textContent = `
-        .reload-button {
-            background-color: #e74c3c;
-            color: white;
-            padding: 12px 20px;
-            margin: 10px auto;
-            display: block;
-            border: none;
-            border-radius: 5px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        
-        .reload-button:hover {
-            background-color: #c0392b;
-        }
-        
-        .reload-button:disabled {
-            background-color: #95a5a6;
-            cursor: not-allowed;
-        }
-    `;
-    document.head.appendChild(style);
-});
-
-async function startWebcam() {
-    try {
-        if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-            console.warn('Для доступа к веб-камере рекомендуется использовать HTTPS');
-            alert('Для доступа к веб-камере рекомендуется использовать HTTPS протокол.');
-        }
-        
-        // Сначала проверим, загружены ли модели
-        if (!modelsLoadedSuccessfully || 
-            !faceapi.nets.ssdMobilenetv1.isLoaded || 
-            !faceapi.nets.ageGenderNet.isLoaded) {
-            
-            console.log('Модели не загружены, загружаем их сейчас...');
-            statusDisplay.textContent = 'Загрузка моделей перед запуском камеры...';
-            
-            try {
-                await loadModels();
-                console.log('Модели успешно загружены');
-            } catch (modelError) {
-                console.error('Ошибка загрузки моделей:', modelError);
-                statusDisplay.textContent = 'Ошибка загрузки моделей';
-                alert('Не удалось загрузить модели для определения возраста. Пожалуйста, обновите страницу и попробуйте снова.');
-                return;
-            }
-        }
-        
         statusDisplay.textContent = 'Запуск камеры...';
-        console.log('Запрос доступа к веб-камере...');
+        console.log('[Main] Запрос доступа к веб-камере с настройками:', performanceConfig.videoConstraints);
 
-        // Используем настройки из конфигурации производительности
         const constraints = {
             audio: false,
-            video: performanceConfig.videoConstraints
+            video: JSON.parse(JSON.stringify(performanceConfig.videoConstraints)) // Deep copy
         };
 
         stream = await navigator.mediaDevices.getUserMedia(constraints);
-        console.log('Доступ к веб-камере получен');
-        
+        console.log('[Main] Доступ к веб-камере получен');
+
         video.srcObject = stream;
         video.onloadedmetadata = () => {
-            video.play();
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            startButton.disabled = true;
-            stopButton.disabled = false;
-            calibrateButton.disabled = false;
-            confirmAgeButton.disabled = true;
-            currentBestFaceId = null;
-            isAgeStableForConfirmation = false;
-            statusDisplay.textContent = 'Посмотрите прямо в камеру для определения возраста';
-            statusDisplay.className = 'instructions';
-            ageVerdictDisplay.textContent = 'Определение возраста..';
-            ageVerdictDisplay.className = 'age-verdict waiting';
-            console.log('Веб-камера запущена, разрешение:', video.videoWidth, 'x', video.videoHeight);
-            
-            // Запускаем отдельно детекцию и рендеринг
-            faceDetectionData = {
-                lastDetectionTime: 0,
-                faceBox: null,
-                faceId: null,
-                age: null,
-                isStable: false
-            };
-            
-            // Запускаем анимацию для плавного рендеринга
-            startRenderLoop();
-            
-            // Запускаем детекцию лица в отдельном интервале с частотой, зависящей от производительности
-            detectionInterval = setInterval(detectAgeAndGender, performanceConfig.detectionInterval);
+            video.play().then(() => {
+                console.log('[Main] Веб-камера запущена, разрешение:', video.videoWidth, 'x', video.videoHeight);
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                calibrateButton.disabled = false;
+                confirmAgeButton.disabled = true; // Reset on start
+                currentBestFaceId = null;
+                isAgeStableForConfirmation = false;
+                
+                statusDisplay.textContent = 'Посмотрите прямо в камеру для определения возраста';
+                statusDisplay.className = 'instructions';
+                ageVerdictDisplay.textContent = 'Определение возраста..';
+                ageVerdictDisplay.className = 'age-verdict waiting';
+                
+                faceDetectionData = { // Reset face data
+                    lastDetectionTime: 0,
+                    faceBox: null,
+                    faceId: null,
+                    age: null,
+                    isStable: false
+                };
+                
+                startRenderLoop(); // Start rendering loop
+
+                if (detectionInterval) clearInterval(detectionInterval); // Clear any existing interval
+                detectionInterval = setInterval(sendFrameToWorker, performanceConfig.detectionInterval);
+                console.log('[Main] Interval set for sendFrameToWorker every', performanceConfig.detectionInterval, 'ms');
+
+            }).catch(playError => {
+                console.error('[Main] Ошибка воспроизведения видео:', playError);
+                statusDisplay.textContent = 'Ошибка воспроизведения видео.';
+                statusDisplay.className = 'error';
+            });
         };
+         video.onerror = (e) => {
+            console.error('[Main] Ошибка элемента video:', e);
+            statusDisplay.textContent = 'Ошибка камеры. Проверьте доступ и настройки.';
+            statusDisplay.className = 'error';
+        };
+
     } catch (error) {
-        console.error('Ошибка доступа к веб-камере:', error);
-        statusDisplay.textContent = 'Ошибка камеры';
-        alert('Не удалось получить доступ к веб-камере.');
+        console.error('[Main] Ошибка доступа к веб-камере:', error);
+        statusDisplay.textContent = 'Ошибка камеры: ' + error.message;
+        statusDisplay.className = 'error';
+        // alert('Не удалось получить доступ к веб-камере: ' + error.name + " - " + error.message);
     }
 }
 
 function stopWebcam() {
+    if (detectionInterval) {
+        clearInterval(detectionInterval);
+        detectionInterval = null;
+        console.log('[Main] Detection interval cleared.');
+    }
+    if (animationFrameId) { // Stop rendering loop
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+    if (detectionWorker) {
+        detectionWorker.terminate();
+        detectionWorker = null;
+        console.log('[Main] Detection worker terminated.');
+    }
+
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
         video.srcObject = null;
-        startButton.disabled = false;
-        stopButton.disabled = true;
-        calibrateButton.disabled = true;
-        confirmAgeButton.disabled = true;
-        currentBestFaceId = null;
-        isAgeStableForConfirmation = false;
-        clearInterval(detectionInterval);
-        
-        // Останавливаем анимацию
-        if (animationFrameId) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
+        console.log('[Main] Веб-камера остановлена');
+    }
+    
+    startButton.disabled = false; // Allow restarting
+    stopButton.disabled = true;
+    calibrateButton.disabled = true;
+    confirmAgeButton.disabled = true;
+    
+    currentBestFaceId = null;
+    isAgeStableForConfirmation = false;
+    
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    faceDetectionData = null; // Clear data
+    
+    statusDisplay.textContent = 'Камера остановлена';
+    statusDisplay.className = '';
+    averageAgeDisplay.textContent = '-';
+    ageVerdictDisplay.textContent = '';
+    ageVerdictDisplay.className = 'age-verdict';
+}
+
+function sendFrameToWorker() {
+    if (!detectionWorker || !video || video.readyState < video.HAVE_METADATA || video.paused || video.ended) {
+        return;
+    }
+    try {
+        frameDetectId++; // Increment frame ID for profiling
+        console.time(`[Main] frameProcessingTime_${frameDetectId}`);
+
+        if (typeof createImageBitmap !== 'undefined') {
+            createImageBitmap(video)
+                .then(videoFrameBitmap => {
+                    if (detectionWorker) { // Check worker again in async callback
+                        detectionWorker.postMessage({ type: 'detect', videoFrameBitmap: videoFrameBitmap, id: frameDetectId }, [videoFrameBitmap]);
+                    } else {
+                        videoFrameBitmap.close(); // Clean up if worker disappeared
+                        console.timeEnd(`[Main] frameProcessingTime_${frameDetectId}`); // End time if not sending
+                    }
+                })
+                .catch(err => {
+                    console.error('[Main] Error creating VideoFrameBitmap:', err);
+                    console.timeEnd(`[Main] frameProcessingTime_${frameDetectId}`); // End time on error
+                    sendFrameAsImageData(frameDetectId); // Fallback, pass ID
+                });
+        } else {
+            sendFrameAsImageData(frameDetectId); // Fallback, pass ID
         }
+    } catch (error) {
+        console.error('[Main] Error in sendFrameToWorker:', error);
+        console.timeEnd(`[Main] frameProcessingTime_${frameDetectId}`); // End time on error
+        if (detectionWorker) {
+            detectionWorker.postMessage({ type: 'error', message: '[Main] sendFrameToWorker Error: ' + error.message, id: frameDetectId });
+        }
+    }
+}
+
+function sendFrameAsImageData(currentFrameId) { // Accept frameId
+    if (!detectionWorker || !video || video.readyState < video.HAVE_METADATA || video.paused || video.ended) {
+        if (currentFrameId) console.timeEnd(`[Main] frameProcessingTime_${currentFrameId}`); // End time if not sending
+        return;
+    }
+    try {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = video.videoWidth;
+        tempCanvas.height = video.videoHeight;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+        const imageData = tempCtx.getImageData(0, 0, video.videoWidth, video.videoHeight);
         
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        faceDetectionData = null;
-        
-        statusDisplay.textContent = 'Камера остановлена';
-        averageAgeDisplay.textContent = '-';
-        ageVerdictDisplay.textContent = '';
-        ageVerdictDisplay.className = 'age-verdict';
-        console.log('Веб-камера остановлена');
+        if (detectionWorker) {
+            detectionWorker.postMessage({ type: 'detect', imageData: imageData, id: currentFrameId }, [imageData.data.buffer]);
+        } else {
+            if (currentFrameId) console.timeEnd(`[Main] frameProcessingTime_${currentFrameId}`);
+        }
+    } catch (imageDataError){
+        console.error('[Main] Error in sendFrameAsImageData:', imageDataError);
+        if (currentFrameId) console.timeEnd(`[Main] frameProcessingTime_${currentFrameId}`);
+        if (detectionWorker) {
+            detectionWorker.postMessage({ type: 'error', message: '[Main] sendFrameAsImageData Error: ' + imageDataError.message, id: currentFrameId });
+        }
     }
 }
 
 function calibrateAge() {
-    console.log('Перекалибровка возраста...');
+    console.log('[Main] Перекалибровка возраста...');
     faceAgeHistory.clear();
     displayedAges.clear();
-    shouldUpdateAges = true;
+    shouldUpdateAges = true; // This flag seems to be used by smoothAge
     currentBestFaceId = null;
     isAgeStableForConfirmation = false;
     confirmAgeButton.disabled = true;
+    
     statusDisplay.textContent = 'Калибровка! Смотрите прямо в камеру и не двигайтесь';
     statusDisplay.className = 'scanning instructions';
     ageVerdictDisplay.textContent = 'Идет калибровка...';
@@ -681,21 +544,18 @@ function calibrateAge() {
     setTimeout(() => {
         calibrateButton.textContent = "Перекалибровать возраст";
         calibrateButton.classList.remove('calibrating');
-        if (shouldUpdateAges) {
+        if (shouldUpdateAges && statusDisplay.className.includes('scanning')) { // Check if still in calibration state
             statusDisplay.textContent = 'Посмотрите прямо в камеру для определения возраста';
             statusDisplay.className = 'instructions';
         }
-    }, 700); // Сокращено время калибровки
-    if (window.stableFaceBoxes) {
-        window.stableFaceBoxes.clear();
-    }
+    }, 700); 
+    // if (window.stableFaceBoxes) window.stableFaceBoxes.clear(); // This global var was not defined
 }
 
 function confirmAge() {
-    // Убираем отладочный alert
-    console.log('Подтверждение возраста...');
+    console.log('[Main] Подтверждение возраста...');
     if (!isAgeStableForConfirmation || !currentBestFaceId) {
-        console.warn('Попытка подтвердить возраст, когда он не стабилен или лицо не найдено.');
+        console.warn('[Main] Попытка подтвердить возраст, когда он не стабилен или лицо не найдено.');
         statusDisplay.textContent = 'Возраст не зафиксирован. Попробуйте снова.';
         statusDisplay.className = 'error';
         confirmAgeButton.disabled = true;
@@ -703,10 +563,11 @@ function confirmAge() {
     }
 
     const confirmedFaceData = faceAgeHistory.get(currentBestFaceId);
-    if (!confirmedFaceData || !confirmedFaceData.finalProcessedAge) {
-        console.error('Ошибка: нет данных для подтвержденного лица или возраст не обработан.');
+    if (!confirmedFaceData || confirmedFaceData.finalProcessedAge === null || typeof confirmedFaceData.finalProcessedAge === 'undefined') {
+        console.error('[Main] Ошибка: нет данных для подтвержденного лица или возраст не обработан. FaceData:', confirmedFaceData);
         statusDisplay.textContent = 'Ошибка при получении данных о возрасте.';
         statusDisplay.className = 'error';
+        // Reset state
         faceAgeHistory.clear();
         displayedAges.clear();
         currentBestFaceId = null;
@@ -721,43 +582,24 @@ function confirmAge() {
     
     const finalAge = confirmedFaceData.finalProcessedAge;
     averageAgeDisplay.textContent = finalAge;
+    console.log(`[Main] Возраст зафиксирован: ${finalAge} для лица ${currentBestFaceId}`);
 
-    console.log(`Возраст зафиксирован: ${finalAge} для лица ${currentBestFaceId}`);
-
-    try {
-        if (finalAge >= AGE_VERIFICATION_THRESHOLD) {
-            ageVerdictDisplay.textContent = 'Продажа РАЗРЕШЕНА';
-            ageVerdictDisplay.className = 'age-verdict allowed';
-            statusDisplay.textContent = `Возраст: ${finalAge} - Продажа разрешена`;
-            statusDisplay.className = 'verified';
-            
-            // Сохраняем статус в глобальных переменных
-            window.ageStatus = "18+";
-            window.ageVerificationStatus = "18+";
-            
-            // Создаем или обновляем скрытый элемент для хранения статуса
-            updateAgeStatusElement("18+");
-            
-            console.log("СТАТУС: 18+");
-        } else {
-            ageVerdictDisplay.textContent = `Продажа ЗАПРЕЩЕНА (возраст < ${AGE_VERIFICATION_THRESHOLD})`;
-            ageVerdictDisplay.className = 'age-verdict denied';
-            statusDisplay.textContent = `Возраст: ${finalAge} - Продажа запрещена`;
-            statusDisplay.className = 'denied';
-            
-            // Сохраняем статус в глобальных переменных
-            window.ageStatus = "Младше 18 лет";
-            window.ageVerificationStatus = "Младше 18 лет";
-            
-            // Создаем или обновляем скрытый элемент для хранения статуса
-            updateAgeStatusElement("Младше 18 лет");
-            
-            console.log("СТАТУС: Младше 18 лет");
-        }
-    } catch(e) {
-        console.error("Ошибка при выводе статуса возраста:", e);
+    if (finalAge >= AGE_VERIFICATION_THRESHOLD) {
+        ageVerdictDisplay.textContent = 'Продажа РАЗРЕШЕНА';
+        ageVerdictDisplay.className = 'age-verdict allowed';
+        statusDisplay.textContent = `Возраст: ${finalAge} - Продажа разрешена`;
+        statusDisplay.className = 'verified';
+        window.ageVerificationStatus = "18+";
+    } else {
+        ageVerdictDisplay.textContent = `Продажа ЗАПРЕЩЕНА (возраст < ${AGE_VERIFICATION_THRESHOLD})`;
+        ageVerdictDisplay.className = 'age-verdict denied';
+        statusDisplay.textContent = `Возраст: ${finalAge} - Продажа запрещена`;
+        statusDisplay.className = 'denied';
+        window.ageVerificationStatus = "Младше 18 лет";
     }
+    updateAgeStatusElement(window.ageVerificationStatus); // Update the status element
     
+    // Reset for next detection
     faceAgeHistory.clear();
     displayedAges.clear();
     currentBestFaceId = null;
@@ -765,18 +607,18 @@ function confirmAge() {
     confirmAgeButton.disabled = true;
 
     setTimeout(() => {
-        statusDisplay.textContent = 'Посмотрите прямо в камеру для определения возраста';
-        statusDisplay.className = 'instructions';
-        ageVerdictDisplay.textContent = 'Определение возраста..';
-        ageVerdictDisplay.className = 'age-verdict waiting';
-        averageAgeDisplay.textContent = '-';
+        if (!stopButton.disabled) { // Only reset if camera is still running
+            statusDisplay.textContent = 'Посмотрите прямо в камеру для определения возраста';
+            statusDisplay.className = 'instructions';
+            ageVerdictDisplay.textContent = 'Определение возраста..';
+            ageVerdictDisplay.className = 'age-verdict waiting';
+            averageAgeDisplay.textContent = '-';
+        }
     }, 3000);
 }
 
-// Добавляем функцию для обновления элемента статуса возраста
 function updateAgeStatusElement(status) {
     let statusElement = document.getElementById('ageStatusData');
-    
     if (!statusElement) {
         statusElement = document.createElement('div');
         statusElement.id = 'ageStatusData';
@@ -784,428 +626,166 @@ function updateAgeStatusElement(status) {
         statusElement.style.marginTop = '10px';
         statusElement.style.border = '1px solid #ccc';
         statusElement.style.borderRadius = '4px';
-        
-        // Находим подходящее место для вставки элемента
-        const container = document.querySelector('.age-verification-container') || document.body;
+        const container = document.querySelector('.stats') || document.body; // Place it within stats
         container.appendChild(statusElement);
     }
-    
-    // Устанавливаем цвет фона в зависимости от статуса
-    if (status === "18+") {
-        statusElement.style.backgroundColor = '#dff0d8';
-        statusElement.style.color = '#3c763d';
-    } else {
-        statusElement.style.backgroundColor = '#f2dede';
-        statusElement.style.color = '#a94442';
-    }
-    
-    // Добавляем текущую дату и время
-    const now = new Date();
-    const timestamp = now.toLocaleTimeString();
-    
-    statusElement.innerHTML = `
-        <strong>Статус проверки возраста:</strong> ${status}<br>
-        <small>Последнее обновление: ${timestamp}</small>
-    `;
+    statusElement.style.backgroundColor = status === "18+" ? '#dff0d8' : '#f2dede';
+    statusElement.style.color = status === "18+" ? '#3c763d' : '#a94442';
+    const timestamp = new Date().toLocaleTimeString();
+    statusElement.innerHTML = `<strong>Статус проверки возраста:</strong> ${status}<br><small>Последнее обновление: ${timestamp}</small>`;
 }
 
 function smoothAge(faceId, age) {
     if (!faceAgeHistory.has(faceId)) {
         faceAgeHistory.set(faceId, {
-            ages: shouldUpdateAges ? [age] : [],
+            ages: shouldUpdateAges ? [age] : [], // Start with current age if calibrating
             lastSeen: Date.now(),
-            isStable: !shouldUpdateAges,
-            finalProcessedAge: null,
-            lockTimerStart: null,
-            isLocked: false,
-            lockedAge: null,
-            lockedVerdictText: '',
-            lockedVerdictClass: '',
-            // Добавляем счетчик обновлений для оптимизации
+            isStable: !shouldUpdateAges, // If calibrating, not stable yet
+            finalProcessedAge: shouldUpdateAges ? null : Math.round(age),
             updateCounter: 0
         });
-        return Math.round(age);
+        return Math.round(age); // Return current age immediately
     }
 
     const faceData = faceAgeHistory.get(faceId);
     faceData.lastSeen = Date.now();
-    
-    // Увеличиваем счетчик обновлений
     faceData.updateCounter = (faceData.updateCounter || 0) + 1;
-    
-    // Для низкопроизводительных устройств обновляем данные реже
-    const shouldUpdateHistory = performanceConfig.lowEndDevice ? 
-        faceData.updateCounter % 3 === 0 : true;
-    
+
+    const shouldUpdateHistory = performanceConfig.lowEndDevice ? faceData.updateCounter % 3 === 0 : true;
+
     if ((shouldUpdateAges || faceData.ages.length < AGE_HISTORY_LENGTH) && shouldUpdateHistory) {
         faceData.ages.push(age);
-        faceData.isStable = false;
-        faceData.finalProcessedAge = null;
-        faceData.lockTimerStart = null;
-        faceData.isLocked = false;
+        faceData.isStable = false; // Mark as not stable while collecting ages
+        faceData.finalProcessedAge = null; // Reset processed age
         if (faceData.ages.length > AGE_HISTORY_LENGTH) {
             faceData.ages.shift();
         }
         if (faceData.ages.length >= AGE_HISTORY_LENGTH) {
-            faceData.isStable = true;
+            faceData.isStable = true; // Stable once enough ages collected
+            // Check if all faces are stable to declare calibration complete
             let allFacesStable = true;
             for (const data of faceAgeHistory.values()) {
-                if (!data.isStable) {
-                    allFacesStable = false;
-                    break;
-                }
+                if (!data.isStable) { allFacesStable = false; break; }
             }
             if (allFacesStable) {
-                shouldUpdateAges = false;
-                console.log('Возраст стабилизирован, калибровка завершена');
-                statusDisplay.textContent = 'Возраст определен';
-                statusDisplay.className = 'verified';
-                calibrateButton.textContent = "Перекалибровать возраст";
-                calibrateButton.classList.remove('calibrating');
+                shouldUpdateAges = false; // Stop calibration mode
+                console.log('[Main] Возраст стабилизирован, калибровка завершена');
+                if (statusDisplay.className.includes('scanning')) { // Check if still in calibration state
+                    statusDisplay.textContent = 'Возраст определен';
+                    statusDisplay.className = 'verified';
+                }
+                if (calibrateButton.classList.contains('calibrating')) {
+                    calibrateButton.textContent = "Перекалибровать возраст";
+                    calibrateButton.classList.remove('calibrating');
+                }
             }
         }
     } else if (!faceData.isStable && faceData.ages.length >= AGE_HISTORY_LENGTH) {
-        faceData.isStable = true;
+        faceData.isStable = true; // Already has enough data, mark as stable
     }
 
     if (faceData.ages.length > 0) {
-        // Для слабых устройств используем простое среднее вместо взвешенного
-        const smoothedAge = faceData.ages.reduce((sum, val) => sum + val, 0) / faceData.ages.length;
-        const finalAge = Math.round(smoothedAge);
-        faceData.finalProcessedAge = finalAge;
-        
-        // На слабых устройствах обновляем отображаемый возраст реже
-        const updateThreshold = performanceConfig.lowEndDevice ? AGE_UPDATE_THRESHOLD * 2 : AGE_UPDATE_THRESHOLD;
-        
-        if (!displayedAges.has(faceId) || 
-            Math.abs(finalAge - displayedAges.get(faceId)) >= updateThreshold || 
-            (shouldUpdateAges && faceData.isStable)) {
-            displayedAges.set(faceId, finalAge);
+        const smoothedAgeValue = faceData.ages.reduce((sum, val) => sum + val, 0) / faceData.ages.length;
+        faceData.finalProcessedAge = Math.round(smoothedAgeValue);
+
+        const updateDisplayThreshold = performanceConfig.lowEndDevice ? AGE_UPDATE_THRESHOLD * 2 : AGE_UPDATE_THRESHOLD;
+        if (!displayedAges.has(faceId) || Math.abs(faceData.finalProcessedAge - displayedAges.get(faceId)) >= updateDisplayThreshold || (shouldUpdateAges && faceData.isStable)) {
+            displayedAges.set(faceId, faceData.finalProcessedAge);
         }
         return faceData.finalProcessedAge;
     }
     
-    if (displayedAges.has(faceId)) {
-        faceData.finalProcessedAge = displayedAges.get(faceId);
-        return faceData.finalProcessedAge;
-    }
-    
+    // Fallback if ages array is empty for some reason but finalProcessedAge exists
+    if (faceData.finalProcessedAge !== null) return faceData.finalProcessedAge;
+
+    // Fallback to current age if no history
     faceData.finalProcessedAge = Math.round(age);
     return faceData.finalProcessedAge;
 }
 
 function cleanupAgeHistory() {
     const now = Date.now();
-    const MAX_AGE_MS = 6000;
+    const MAX_AGE_MS = 6000; // Keep history for faces seen in the last 6s
     for (const [faceId, faceData] of faceAgeHistory.entries()) {
         if (now - faceData.lastSeen > MAX_AGE_MS) {
             faceAgeHistory.delete(faceId);
             displayedAges.delete(faceId);
+            // If the cleaned up face was the current best one, reset confirmation
+            if (currentBestFaceId === faceId) {
+                currentBestFaceId = null;
+                isAgeStableForConfirmation = false;
+                confirmAgeButton.disabled = true;
+            }
         }
     }
 }
 
-// Функция для плавной отрисовки, независимая от детекции
 function startRenderLoop() {
-    // Для отслеживания времени между кадрами
     let lastRenderTime = 0;
-    
     function renderFrame(timestamp) {
-        // Рассчитываем дельту времени для плавной анимации
-        const deltaTime = timestamp - lastRenderTime;
-        lastRenderTime = timestamp;
-        
-        if (!faceDetectionData) {
-            animationFrameId = requestAnimationFrame(renderFrame);
-            return;
-        }
-        
-        // Очищаем канвас ОДИН раз за кадр
+        animationFrameId = requestAnimationFrame(renderFrame); // Request next frame first
+
+        // const deltaTime = timestamp - lastRenderTime; // Unused
+        // lastRenderTime = timestamp;
+
+        if (!ctx) return; // Ensure canvas context is available
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Если есть данные о лице и оно было замечено не более 2 секунд назад
-        if (faceDetectionData && faceDetectionData.faceBox && 
-            Date.now() - faceDetectionData.lastDetectionTime < 2000) {
-            
-            // Рисуем рамку
+
+        if (faceDetectionData && faceDetectionData.faceBox && video.readyState >= video.HAVE_CURRENT_DATA && !video.paused) {
             const box = faceDetectionData.faceBox;
-            
-            // Для слабых устройств используем простую отрисовку
+            const x = Math.round(box.x);
+            const y = Math.round(box.y);
+            const width = Math.round(box.width);
+            const height = Math.round(box.height);
+
             if (performanceConfig.skipEffects) {
                 ctx.lineWidth = 2;
                 ctx.strokeStyle = '#0077ff';
-                
-                // Округляем координаты для стабильности пикселей
-                const x = Math.round(box.x);
-                const y = Math.round(box.y);
-                const width = Math.round(box.width);
-                const height = Math.round(box.height);
-                
-                // Отрисовка рамки
                 ctx.strokeRect(x, y, width, height);
             } else {
-                // Предотвращение резких движений рамки
-                // Используем более толстую линию с прозрачностью для визуальной стабильности
                 ctx.lineWidth = 4;
                 ctx.strokeStyle = 'rgba(0, 123, 255, 0.8)';
-                
-                // Округляем координаты для стабильности пикселей
-                const x = Math.round(box.x);
-                const y = Math.round(box.y);
-                const width = Math.round(box.width);
-                const height = Math.round(box.height);
-                
-                // Отрисовка рамки - делаем её более заметной
                 ctx.strokeRect(x, y, width, height);
-                
-                // Добавляем внутреннюю рамку для более четкого вида
                 ctx.lineWidth = 2;
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
                 ctx.strokeRect(x + 2, y + 2, width - 4, height - 4);
             }
-            
-            // Отображаем информацию о возрасте
+
             if (faceDetectionData.age !== null) {
-                const textSize = performanceConfig.skipEffects ? 
-                      14 : Math.max(14, Math.min(Math.round(box.width) / 4, 20));
-                ctx.font = `${textSize}px Arial`;
+                const ageToDisplay = faceDetectionData.age; // Already smoothed
+                const isStable = faceDetectionData.isStable;
+                const textSize = performanceConfig.skipEffects ? 14 : Math.max(14, Math.min(Math.round(width) / 4, 20));
+                ctx.font = `bold ${textSize}px Arial`;
                 
-                // Сохраняем ссылки на x и y, которые могли быть объявлены выше в блоке if/else
-                const x = Math.round(box.x);
-                const y = Math.round(box.y);
                 const textYPosition = y - 10 > 0 ? y - 10 : y + textSize + 15;
+                const text = isStable ? `Возраст: ${ageToDisplay}` : 'Определение...';
                 
-                // Для слабых устройств упрощаем отображение
                 if (performanceConfig.skipEffects) {
-                    const text = faceDetectionData.isStable ? 
-                        `Возраст: ${faceDetectionData.age}` : 'Определение...';
-                        
-                    ctx.fillStyle = faceDetectionData.isStable ? '#00FF00' : '#FFA500';
-                    ctx.fillText(text, x + 10, textYPosition);
+                    ctx.fillStyle = isStable ? '#00FF00' : '#FFA500';
+                    ctx.fillText(text, x + 5, textYPosition);
                 } else {
-                    // Добавляем фон для текста для лучшей видимости
-                    const text = faceDetectionData.isStable ? 
-                        `Возраст: ${faceDetectionData.age}` : 'Определение...';
                     const textWidth = ctx.measureText(text).width;
-                    
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-                    ctx.fillRect(x + 5, textYPosition - textSize, textWidth + 10, textSize + 6);
-                    
-                    if (faceDetectionData.isStable) {
-                        ctx.fillStyle = '#00FF00';
-                        ctx.fillText(`Возраст: ${faceDetectionData.age}`, x + 10, textYPosition);
-                    } else {
-                        ctx.fillStyle = '#FFA500';
-                        ctx.fillText('Определение...', x + 10, textYPosition);
-                    }
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(x + 5, textYPosition - textSize - 2, textWidth + 10, textSize + 8);
+                    ctx.fillStyle = isStable ? '#00FF00' : '#FFA500';
+                    ctx.fillText(text, x + 10, textYPosition);
                 }
             }
         }
-        
-        // Запрашиваем следующий кадр
-        animationFrameId = requestAnimationFrame(renderFrame);
     }
-    
-    // Запускаем цикл отрисовки
+    if (animationFrameId) cancelAnimationFrame(animationFrameId); // Cancel previous if any
     animationFrameId = requestAnimationFrame(renderFrame);
 }
 
-// Обновлена функция обнаружения лица без отрисовки
-async function detectAgeAndGender() {
-    if (video.readyState < video.HAVE_METADATA || video.paused || video.ended) {
-        return;
-    }
-
-    // Проверка загруженности моделей
-    if (!faceapi.nets.ssdMobilenetv1.isLoaded) {
-        console.error('Модель SsdMobilenetv1 не загружена!');
-        statusDisplay.textContent = 'Ошибка: модель лица не загружена';
-        
-        // Пробуем загрузить модель еще раз если она не загружена
-        try {
-            console.log('Попытка повторной загрузки модели SsdMobilenetv1...');
-            await faceapi.nets.ssdMobilenetv1.loadFromUri(FACE_API_MODEL_URL);
-            console.log('Модель SsdMobilenetv1 успешно загружена повторно');
-            return; // Выходим, чтобы в следующем интервале проверить успешность загрузки
-        } catch (e) {
-            console.error('Ошибка при повторной загрузке модели SsdMobilenetv1:', e);
-            clearInterval(detectionInterval);
-            return;
-        }
-    }
-    
-    if (!faceapi.nets.ageGenderNet.isLoaded) {
-        console.error('Модель AgeGenderNet не загружена!');
-        statusDisplay.textContent = 'Ошибка: модель возраста не загружена';
-        
-        // Пробуем загрузить модель еще раз если она не загружена
-        try {
-            console.log('Попытка повторной загрузки модели AgeGenderNet...');
-            await faceapi.nets.ageGenderNet.loadFromUri(FACE_API_MODEL_URL);
-            console.log('Модель AgeGenderNet успешно загружена повторно');
-            return; // Выходим, чтобы в следующем интервале проверить успешность загрузки
-        } catch (e) {
-            console.error('Ошибка при повторной загрузке модели AgeGenderNet:', e);
-            clearInterval(detectionInterval);
-            return;
-        }
-    }
-
-    const displaySize = { width: video.videoWidth, height: video.videoHeight };
-    faceapi.matchDimensions(canvas, displaySize);
-
-    // Настройка параметров детекции в зависимости от производительности устройства
-    const detectionOptions = new faceapi.SsdMobilenetv1Options({ 
-        minConfidence: performanceConfig.lowEndDevice ? 0.4 : 0.5, // Снижаем порог для слабых устройств
-        maxResults: 1 // Ограничиваем количество обнаруживаемых лиц для экономии ресурсов
-    });
-
-    try {
-        // Применяем семплирование для слабых устройств - уменьшаем входное изображение
-        let detectInput = video;
-        
-        if (performanceConfig.lowEndDevice) {
-            // Создаем canvas с пониженным разрешением для уменьшения нагрузки
-            const sampleCanvas = document.createElement('canvas');
-            const sampleCtx = sampleCanvas.getContext('2d');
-            
-            // Уменьшаем в 2 раза для анализа
-            sampleCanvas.width = video.videoWidth / 2;
-            sampleCanvas.height = video.videoHeight / 2;
-            
-            // Рисуем видео в уменьшенном размере
-            sampleCtx.drawImage(video, 0, 0, sampleCanvas.width, sampleCanvas.height);
-            
-            // Используем уменьшенное изображение для детекции
-            detectInput = sampleCanvas;
-        }
-        
-        const detectionsWithAgeAndGender = await faceapi.detectAllFaces(detectInput, detectionOptions)
-            .withAgeAndGender();
-            
-        // Если используем уменьшенное изображение, корректируем координаты
-        if (performanceConfig.lowEndDevice && detectionsWithAgeAndGender.length > 0) {
-            detectionsWithAgeAndGender.forEach(detection => {
-                const box = detection.detection.box;
-                box.x *= 2;
-                box.y *= 2;
-                box.width *= 2;
-                box.height *= 2;
-            });
-        }
-
-        // Если нет лиц - обновляем интерфейс
-        if (detectionsWithAgeAndGender.length === 0) {
-            // Если нет лиц в кадре больше 3 секунд - сбрасываем состояние UI
-            if (!faceDetectionData || Date.now() - faceDetectionData.lastDetectionTime > 3000) {
-                if (!isAgeStableForConfirmation) {
-                    averageAgeDisplay.textContent = '-';
-                    statusDisplay.textContent = 'Лицо не обнаружено. Посмотрите в камеру.';
-                    statusDisplay.className = 'error';
-                    confirmAgeButton.disabled = true;
-                    currentBestFaceId = null;
-                }
-            }
-            return;
-        }
-        
-        // Выбираем лучшее лицо для отображения
-        const bestDetection = getBestDetection(detectionsWithAgeAndGender);
-        if (!bestDetection) return;
-        
-        // Получаем ID лица и обрабатываем возраст
-        const faceId = getFaceId(bestDetection);
-        const processedAge = smoothAge(faceId, Math.round(bestDetection.age));
-        const faceData = faceAgeHistory.get(faceId);
-        
-        // Обновляем данные для отрисовки
-        if (!faceDetectionData) {
-            faceDetectionData = {
-                lastDetectionTime: Date.now(),
-                faceBox: bestDetection.detection.box,
-                faceId: faceId,
-                age: processedAge,
-                isStable: faceData ? faceData.isStable : false
-            };
-        } else {
-            // Плавное сглаживание положения рамки
-            if (faceDetectionData.faceBox) {
-                const currentBox = faceDetectionData.faceBox;
-                const newBox = bestDetection.detection.box;
-                
-                // Адаптивное сглаживание с учетом скорости движения и производительности устройства
-                // Вычисляем расстояние между текущим и новым положением
-                const dx = Math.abs(currentBox.x - newBox.x);
-                const dy = Math.abs(currentBox.y - newBox.y);
-                const distance = Math.sqrt(dx*dx + dy*dy);
-                
-                // Для слабых устройств делаем меньше плавности, но больше производительности
-                let alpha = performanceConfig.lowEndDevice ? 0.5 : 0.3; // Базовое значение
-                
-                // Быстрая реакция на большие перемещения
-                if (distance > 20) {
-                    alpha = performanceConfig.lowEndDevice ? 0.8 : 0.5;  // Быстрое следование при резком движении
-                } else if (distance > 5) {
-                    alpha = performanceConfig.lowEndDevice ? 0.6 : 0.4;  // Средняя скорость для умеренного движения
-                } else if (performanceConfig.lowEndDevice) {
-                    alpha = 0.5;  // Для слабых устройств меньше сглаживания при малых движениях
-                } else {
-                    alpha = 0.2;  // Стабильность при небольших изменениях
-                }
-                
-                // Обновляем положение рамки с учетом адаптивного сглаживания
-                faceDetectionData.faceBox = {
-                    x: currentBox.x * (1 - alpha) + newBox.x * alpha,
-                    y: currentBox.y * (1 - alpha) + newBox.y * alpha,
-                    width: currentBox.width * (1 - alpha) + newBox.width * alpha,
-                    height: currentBox.height * (1 - alpha) + newBox.height * alpha
-                };
-            } else {
-                faceDetectionData.faceBox = bestDetection.detection.box;
-            }
-            
-            faceDetectionData.lastDetectionTime = Date.now();
-            faceDetectionData.faceId = faceId;
-            faceDetectionData.age = processedAge;
-            faceDetectionData.isStable = faceData ? faceData.isStable : false;
-        }
-        
-        // Обновляем интерфейс для подтверждения возраста
-        if (faceData && faceData.isStable) {
-            currentBestFaceId = faceId;
-            isAgeStableForConfirmation = true;
-            confirmAgeButton.disabled = false;
-            statusDisplay.textContent = 'Возраст определен. Нажмите "Подтвердить возраст"';
-            statusDisplay.className = 'ready-for-confirmation';
-            
-            averageAgeDisplay.textContent = processedAge;
-        } else if (!isAgeStableForConfirmation) {
-            confirmAgeButton.disabled = true;
-            currentBestFaceId = null;
-            averageAgeDisplay.textContent = '-';
-            if (statusDisplay.className !== 'error') {
-                statusDisplay.textContent = 'Определение возраста...';
-                statusDisplay.className = 'scanning';
-            }
-        }
-        
-        cleanupAgeHistory();
-    } catch (error) {
-        console.error('Ошибка в обнаружении лица:', error);
-        // Пропускаем ошибку, просто продолжим на следующем кадре
-    }
+const FACE_POSITION_TOLERANCE = 10; // Define at global scope for getFaceId
+function getFaceId(box) { // Takes a box object
+    if (!box) return 'unknown';
+    return `${Math.round(box.x / FACE_POSITION_TOLERANCE)}-${Math.round(box.y / FACE_POSITION_TOLERANCE)}`;
 }
 
-// Вспомогательная функция для получения ID лица на основе его положения
-function getFaceId(detection) {
-    const { x, y } = detection.detection.box;
-    return `${Math.round(x / FACE_POSITION_TOLERANCE)}-${Math.round(y / FACE_POSITION_TOLERANCE)}`;
-}
-
-// Вспомогательная функция для выбора лучшего лица (с наибольшей площадью)
 function getBestDetection(detections) {
-    if (detections.length === 0) return null;
-    
+    if (!detections || detections.length === 0) return null;
     return detections.reduce((best, current) => {
         const currentArea = current.detection.box.width * current.detection.box.height;
         const bestArea = best.detection.box.width * best.detection.box.height;
@@ -1213,33 +793,13 @@ function getBestDetection(detections) {
     }, detections[0]);
 }
 
+// Event Listeners for buttons
 startButton.addEventListener('click', startWebcam);
 stopButton.addEventListener('click', stopWebcam);
 calibrateButton.addEventListener('click', calibrateAge);
 confirmAgeButton.addEventListener('click', confirmAge);
 
-console.log('Обработчики событий кнопок установлены');
+console.log('[Main] Обработчики событий кнопок установлены');
 
-// Добавим эту кнопку в HTML через JavaScript для обратной совместимости
-window.addEventListener('DOMContentLoaded', function() {
-    // Создаём кнопку для переключения режима
-    const toggleButton = document.createElement('button');
-    toggleButton.id = 'togglePerformanceButton';
-    toggleButton.textContent = 'Переключить режим производительности';
-    toggleButton.className = 'performance-button';
-    
-    // Добавляем кнопку после основных кнопок
-    const controls = document.querySelector('.controls');
-    if (controls) {
-        controls.appendChild(toggleButton);
-    } else {
-        document.body.appendChild(toggleButton);
-    }
-    
-    // Добавляем обработчик события клика
-    toggleButton.addEventListener('click', function() {
-        const newMode = togglePerformanceMode();
-        alert('Переключено: ' + newMode);
-    });
-});
-
+// Styles for reload/load buttons are now in styles.css or removed if buttons aren't used
+// The performance toggle button is added in window.onload
